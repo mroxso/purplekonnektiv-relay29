@@ -96,7 +96,7 @@ func (s *State) NewGroup(id string) *Group {
 		Group: nip29.Group{
 			Address: nip29.GroupAddress{
 				ID:    id,
-				Relay: "ws://" + s.Domain,
+				Relay: "wss://" + s.Domain,
 			},
 			Members: map[string]*nip29.Role{},
 		},
