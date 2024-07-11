@@ -193,6 +193,22 @@ func (s *State) applyModerationAction(ctx context.Context, event *nostr.Event) {
 			group.ToMembersEvent,
 		},
 	}[event.Kind] {
+		switch event.Kind {
+		case nostr.KindSimpleGroupCreateGroup:
+			group.LastMetadataUpdate = nostr.Now()
+			group.LastAdminsUpdate = nostr.Now()
+			group.LastMembersUpdate = nostr.Now()
+		case nostr.KindSimpleGroupEditMetadata, nostr.KindSimpleGroupEditGroupStatus:
+			group.LastMetadataUpdate = nostr.Now()
+		case nostr.KindSimpleGroupAddPermission:
+			group.LastMembersUpdate = nostr.Now()
+			group.LastAdminsUpdate = nostr.Now()
+		case nostr.KindSimpleGroupRemovePermission:
+			group.LastAdminsUpdate = nostr.Now()
+		case nostr.KindSimpleGroupAddUser, nostr.KindSimpleGroupRemoveUser:
+			group.LastMembersUpdate = nostr.Now()
+		}
+
 		evt := toBroadcast()
 		evt.Sign(s.privateKey)
 		s.Relay.BroadcastEvent(evt)

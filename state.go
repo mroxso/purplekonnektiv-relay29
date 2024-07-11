@@ -96,7 +96,7 @@ func (s *State) NewGroup(id string) *Group {
 		Group: nip29.Group{
 			Address: nip29.GroupAddress{
 				ID:    id,
-				Relay: "wss://" + s.Domain,
+				Relay: "ws://" + s.Domain,
 			},
 			Members: map[string]*nip29.Role{},
 		},
@@ -112,11 +112,12 @@ func (s *State) loadGroups(ctx context.Context) {
 
 		group := s.NewGroup(id)
 		f := nostr.Filter{
-			Limit: 5000, Kinds: nip29.ModerationEventKinds, Tags: nostr.TagMap{"h": []string{id}},
+			Kinds: nip29.ModerationEventKinds,
+			Tags:  nostr.TagMap{"h": []string{id}},
 		}
 		ch, _ := s.DB.QueryEvents(ctx, f)
 
-		events := make([]*nostr.Event, 0, 5000)
+		events := make([]*nostr.Event, 0)
 		for event := range ch {
 			events = append(events, event)
 		}
