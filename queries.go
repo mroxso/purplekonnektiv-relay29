@@ -176,6 +176,8 @@ func (s *State) normalEventQuery(ctx context.Context, filter nostr.Filter) (chan
 	ch := make(chan *nostr.Event)
 	authed := khatru.GetAuthed(ctx)
 	go func() {
+		defer close(ch) // Ensure the channel is closed when the goroutine exits
+
 		// now here in refE/refA/ids we have to check for each result if it is allowed
 		var results chan *nostr.Event
 		var err error
@@ -187,7 +189,7 @@ func (s *State) normalEventQuery(ctx context.Context, filter nostr.Filter) (chan
 			results, err = s.DB.QueryEvents(ctx, filter)
 		} else {
 			// we must end here for all the metadata queries and so on otherwise they will never close
-			close(ch)
+			return
 		}
 		if err != nil {
 			return
@@ -209,7 +211,6 @@ func (s *State) normalEventQuery(ctx context.Context, filter nostr.Filter) (chan
 				group.mu.RUnlock()
 			}
 		}
-		close(ch)
 	}()
 
 	return ch, nil
