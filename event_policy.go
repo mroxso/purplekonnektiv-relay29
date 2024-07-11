@@ -56,6 +56,10 @@ func (s *State) restrictWritesBasedOnGroupRules(ctx context.Context, event *nost
 		}
 	}
 
+	if event.PubKey == s.publicKey {
+		return false, ""
+	}
+
 	// only members can write
 	group.mu.RLock()
 	defer group.mu.RUnlock()
