@@ -25,6 +25,9 @@ var rateLimitBuckets = xsync.NewMapOf[*relay29.Group, *rate.Limiter]()
 
 func rateLimit(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
 	group := state.GetGroupFromEvent(event)
+	if group == nil {
+		return true, "invalid group"
+	}
 
 	bucket, _ := rateLimitBuckets.LoadOrCompute(group, func() *rate.Limiter {
 		return rate.NewLimiter(rate.Every(time.Minute*2), 30)
@@ -35,6 +38,6 @@ func rateLimit(ctx context.Context, event *nostr.Event) (reject bool, msg string
 		return true, "rate-limited"
 	} else {
 		rsv.OK()
-		return
+		return false, ""
 	}
 }
