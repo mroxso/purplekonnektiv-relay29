@@ -25,7 +25,7 @@ var rateLimitBuckets = xsync.NewMapOf[*relay29.Group, *rate.Limiter]()
 
 func rateLimit(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
 	group := state.GetGroupFromEvent(event)
-	if group == nil {
+	if group == nil && event.Kind != nostr.KindSimpleGroupCreateGroup {
 		return true, "invalid group"
 	}
 
