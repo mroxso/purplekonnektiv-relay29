@@ -148,3 +148,17 @@ func GetGroupIDFromEvent(event *nostr.Event) string {
 	groupId := (*gtag)[1]
 	return groupId
 }
+
+func GetUsersFromEvent(event *nostr.Event) []string {
+	pTags := event.Tags.GetAll([]string{"p", ""})
+	if len(pTags) == 0 {
+		return nil
+	}
+	var users []string
+	for _, tag := range pTags {
+		if len(tag) > 1 {
+			users = append(users, tag[1])
+		}
+	}
+	return users
+}

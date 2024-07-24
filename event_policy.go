@@ -107,6 +107,14 @@ func (s *State) restrictInvalidModerationActions(ctx context.Context, event *nos
 		return true, "invalid moderation action: " + err.Error()
 	}
 
+	// remove self from group
+	if event.Kind == nostr.KindSimpleGroupRemoveUser {
+		users := GetUsersFromEvent(event)
+		if len(users) == 1 && event.PubKey == users[0] {
+			return false, ""
+		}
+	}
+
 	group.mu.RLock()
 	defer group.mu.RUnlock()
 	role, ok := group.Members[event.PubKey]
