@@ -1,19 +1,21 @@
 module github.com/fiatjaf/relay29
 
-go 1.22.2
+go 1.23.0
 
 require (
-	github.com/fiatjaf/eventstore v0.7.0
-	github.com/fiatjaf/khatru v0.6.1
+	github.com/fiatjaf/eventstore v0.8.2
+	github.com/fiatjaf/khatru v0.8.1
+	github.com/fiatjaf/relayer/v2 v2.2.1
 	github.com/fiatjaf/set v0.0.3
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/nbd-wtf/go-nostr v0.34.3
-	github.com/puzpuzpuz/xsync/v3 v3.1.0
+	github.com/mojocn/base64Captcha v1.3.6
+	github.com/nbd-wtf/go-nostr v0.35.0
+	github.com/puzpuzpuz/xsync/v3 v3.4.0
 	github.com/rs/zerolog v1.31.0
 	github.com/stretchr/testify v1.9.0
 	github.com/theplant/htmlgo v1.0.3
 	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8
-	golang.org/x/time v0.4.0
+	golang.org/x/time v0.5.0
 )
 
 require (
@@ -29,9 +31,9 @@ require (
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
-	github.com/kr/pretty v0.3.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
@@ -43,7 +45,7 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.54.0 // indirect
-	go.etcd.io/bbolt v1.3.9 // indirect
+	golang.org/x/image v0.13.0 // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

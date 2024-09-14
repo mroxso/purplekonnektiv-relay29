@@ -4,12 +4,11 @@ import (
 	"context"
 	"slices"
 
-	"github.com/fiatjaf/khatru"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-func (s *State) requireKindAndSingleGroupIDOrSpecificEventReference(ctx context.Context, filter nostr.Filter) (reject bool, msg string) {
+func (s *State) RequireKindAndSingleGroupIDOrSpecificEventReference(ctx context.Context, filter nostr.Filter) (reject bool, msg string) {
 	isMeta := false
 	isNormal := false
 	isReference := false
@@ -36,7 +35,7 @@ func (s *State) requireKindAndSingleGroupIDOrSpecificEventReference(ctx context.
 		}
 	}
 
-	authed := khatru.GetAuthed(ctx)
+	authed := s.GetAuthed(ctx)
 
 	switch {
 	case isNormal:
@@ -80,30 +79,7 @@ func (s *State) requireKindAndSingleGroupIDOrSpecificEventReference(ctx context.
 			return true, "invalid query, must have 'h', 'e' or 'a' tag"
 		}
 	case isMeta:
-		// access depends on whether a user is logged in and the groups are public or private
-		if tags, ok := filter.Tags["d"]; ok && len(tags) > 0 {
-			// "h" tags specified
-			for _, tag := range tags {
-				if group, _ := s.Groups.Load(tag); group != nil {
-					if !group.Private {
-						continue // fine, this is public
-					}
-
-					// private,
-					if authed == "" {
-						return true, "auth-required: trying to read from a private group"
-					}
-					// check membership
-					group.mu.RLock()
-					if _, isMember := group.Members[authed]; isMember {
-						group.mu.RUnlock()
-						continue // fine, this user is a member
-					}
-					group.mu.RUnlock()
-					return true, "restricted: not a member"
-				}
-			}
-		}
+		// should be fine
 	}
 
 	return false, ""

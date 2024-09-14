@@ -6,13 +6,12 @@ import (
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
-	nip29_relay "github.com/nbd-wtf/go-nostr/nip29/relay"
 	"github.com/rs/zerolog/log"
 )
 
 const tooOld = 60 // seconds
 
-func (s *State) requireHTagForExistingGroup(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+func (s *State) RequireHTagForExistingGroup(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
 	// this allows us to never check again in any of the other rules if the tag exists and just assume it exists always
 	gtag := event.Tags.GetFirst([]string{"h", ""})
 	if gtag == nil {
@@ -32,7 +31,7 @@ func (s *State) requireHTagForExistingGroup(ctx context.Context, event *nostr.Ev
 	return false, ""
 }
 
-func (s *State) restrictWritesBasedOnGroupRules(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+func (s *State) RestrictWritesBasedOnGroupRules(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
 	group := s.GetGroupFromEvent(event)
 
 	if event.Kind == nostr.KindSimpleGroupJoinRequest {
@@ -70,14 +69,14 @@ func (s *State) restrictWritesBasedOnGroupRules(ctx context.Context, event *nost
 	return false, ""
 }
 
-func (s *State) preventWritingOfEventsJustDeleted(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+func (s *State) PreventWritingOfEventsJustDeleted(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
 	if s.deletedCache.Has(event.ID) {
 		return true, "this was deleted"
 	}
 	return false, ""
 }
 
-func (s *State) requireModerationEventsToBeRecent(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+func (s *State) RequireModerationEventsToBeRecent(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
 	// moderation action events must be new and not reused
 	if nip29.ModerationEventKinds.Includes(event.Kind) && event.CreatedAt < nostr.Now()-tooOld {
 		return true, "moderation action is too old (older than 1 minute ago)"
@@ -85,7 +84,7 @@ func (s *State) requireModerationEventsToBeRecent(ctx context.Context, event *no
 	return false, ""
 }
 
-func (s *State) restrictInvalidModerationActions(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+func (s *State) RestrictInvalidModerationActions(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
 	if !nip29.ModerationEventKinds.Includes(event.Kind) {
 		return false, ""
 	}
@@ -102,17 +101,13 @@ func (s *State) restrictInvalidModerationActions(ctx context.Context, event *nos
 		return false, ""
 	}
 
-	action, err := nip29_relay.GetModerationAction(event)
+	action, err := PrepareModerationAction(event)
 	if err != nil {
 		return true, "invalid moderation action: " + err.Error()
 	}
 
-	// remove self from group
-	if event.Kind == nostr.KindSimpleGroupRemoveUser {
-		users := GetUsersFromEvent(event)
-		if len(users) == 1 && event.PubKey == users[0] {
-			return false, ""
-		}
+	if egs, ok := action.(EditGroupStatus); ok && egs.Private && !s.AllowPrivateGroups {
+		return true, "groups cannot be private"
 	}
 
 	group.mu.RLock()
@@ -127,9 +122,9 @@ func (s *State) restrictInvalidModerationActions(ctx context.Context, event *nos
 	return false, ""
 }
 
-func (s *State) applyModerationAction(ctx context.Context, event *nostr.Event) {
+func (s *State) ApplyModerationAction(ctx context.Context, event *nostr.Event) {
 	// turn event into a moderation action processor
-	action, err := nip29_relay.GetModerationAction(event)
+	action, err := PrepareModerationAction(event)
 	if err != nil {
 		return
 	}
@@ -144,6 +139,7 @@ func (s *State) applyModerationAction(ctx context.Context, event *nostr.Event) {
 	} else {
 		group = s.GetGroupFromEvent(event)
 	}
+
 	// apply the moderation action
 	group.mu.Lock()
 	action.Apply(&group.Group)
@@ -176,6 +172,9 @@ func (s *State) applyModerationAction(ctx context.Context, event *nostr.Event) {
 				}
 			}
 		}
+	} else if event.Kind == nostr.KindSimpleGroupDeleteGroup {
+		// when the group was deleted we just remove it
+		s.Groups.Delete(group.Address.ID)
 	}
 
 	// propagate new replaceable events to listeners depending on what changed happened
@@ -206,16 +205,17 @@ func (s *State) applyModerationAction(ctx context.Context, event *nostr.Event) {
 		},
 	}[event.Kind] {
 		evt := toBroadcast()
-		evt.Sign(s.privateKey)
+		evt.Sign(s.secretKey)
 		s.Relay.BroadcastEvent(evt)
 	}
 }
 
-func (s *State) reactToJoinRequest(ctx context.Context, event *nostr.Event) {
+func (s *State) ReactToJoinRequest(ctx context.Context, event *nostr.Event) {
 	if event.Kind != nostr.KindSimpleGroupJoinRequest {
 		return
 	}
 
+	// if the group is open, anyone requesting to join will be allowed
 	group := s.GetGroupFromEvent(event)
 	if !group.Closed {
 		// immediately add the requester
@@ -227,7 +227,7 @@ func (s *State) reactToJoinRequest(ctx context.Context, event *nostr.Event) {
 				nostr.Tag{"p", event.PubKey},
 			},
 		}
-		if err := addUser.Sign(s.privateKey); err != nil {
+		if err := addUser.Sign(s.secretKey); err != nil {
 			log.Error().Err(err).Msg("failed to sign add-user event")
 			return
 		}
@@ -236,5 +236,34 @@ func (s *State) reactToJoinRequest(ctx context.Context, event *nostr.Event) {
 			return
 		}
 		s.Relay.BroadcastEvent(addUser)
+	}
+}
+
+func (s *State) ReactToLeaveRequest(ctx context.Context, event *nostr.Event) {
+	if event.Kind != nostr.KindSimpleGroupLeaveRequest {
+		return
+	}
+
+	group := s.GetGroupFromEvent(event)
+
+	if _, isMember := group.Members[event.PubKey]; isMember {
+		// immediately remove the requester
+		removeUser := &nostr.Event{
+			CreatedAt: nostr.Now(),
+			Kind:      nostr.KindSimpleGroupRemoveUser,
+			Tags: nostr.Tags{
+				nostr.Tag{"h", group.Address.ID},
+				nostr.Tag{"p", event.PubKey},
+			},
+		}
+		if err := removeUser.Sign(s.secretKey); err != nil {
+			log.Error().Err(err).Msg("failed to sign remove-user event")
+			return
+		}
+		if _, err := s.Relay.AddEvent(ctx, removeUser); err != nil {
+			log.Error().Err(err).Msg("failed to remove user who requested to leave")
+			return
+		}
+		s.Relay.BroadcastEvent(removeUser)
 	}
 }

@@ -4,10 +4,13 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"time"
 
-	"github.com/fiatjaf/eventstore/bolt"
+	"github.com/fiatjaf/eventstore/lmdb"
+	"github.com/fiatjaf/khatru"
 	"github.com/fiatjaf/khatru/policies"
 	"github.com/fiatjaf/relay29"
+	"github.com/fiatjaf/relay29/khatru29"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/rs/zerolog"
@@ -28,8 +31,9 @@ type Settings struct {
 
 var (
 	s     Settings
-	db    = &bolt.BoltBackend{}
+	db    = &lmdb.LMDBBackend{}
 	log   = zerolog.New(os.Stderr).Output(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
+	relay *khatru.Relay
 	state *relay29.State
 )
 
@@ -50,42 +54,42 @@ func main() {
 	log.Debug().Str("path", db.Path).Msg("initialized database")
 
 	// init relay29 stuff
-	state = relay29.Init(relay29.Options{
+	relay, state = khatru29.Init(relay29.Options{
 		Domain:    s.Domain,
 		DB:        db,
 		SecretKey: s.RelayPrivkey,
 	})
 
 	// init relay
-	state.Relay.Info.Name = s.RelayName
-	state.Relay.Info.Description = s.RelayDescription
-	state.Relay.Info.Contact = s.RelayContact
-	state.Relay.Info.Icon = s.RelayIcon
+	relay.Info.Name = s.RelayName
+	relay.Info.Description = s.RelayDescription
+	relay.Info.Contact = s.RelayContact
+	relay.Info.Icon = s.RelayIcon
 
-	state.Relay.OverwriteDeletionOutcome = append(state.Relay.OverwriteDeletionOutcome,
+	relay.OverwriteDeletionOutcome = append(relay.OverwriteDeletionOutcome,
 		blockDeletesOfOldMessages,
 	)
-	state.Relay.RejectEvent = slices.Insert(state.Relay.RejectEvent, 0,
+	relay.RejectEvent = slices.Insert(relay.RejectEvent, 2,
 		policies.PreventLargeTags(64),
 		policies.PreventTooManyIndexableTags(6, []int{9005}, nil),
 		policies.RestrictToSpecifiedKinds(
 			9, 10, 11, 12,
 			30023, 31922, 31923, 9802,
 			9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007,
-			9021,
+			9021, 9022,
 		),
-		policies.PreventTimestampsInThePast(60),
-		policies.PreventTimestampsInTheFuture(30),
+		policies.PreventTimestampsInThePast(60*time.Second),
+		policies.PreventTimestampsInTheFuture(30*time.Second),
 		rateLimit,
 		preventGroupCreation,
 	)
 
 	// http routes
-	state.Relay.Router().HandleFunc("/create", handleCreateGroup)
-	state.Relay.Router().HandleFunc("/", handleHomepage)
+	relay.Router().HandleFunc("/create", handleCreateGroup)
+	relay.Router().HandleFunc("/", handleHomepage)
 
 	log.Info().Str("relay-pubkey", s.RelayPubkey).Msg("running on http://0.0.0.0:" + s.Port)
-	if err := http.ListenAndServe(":"+s.Port, state.Relay); err != nil {
+	if err := http.ListenAndServe(":"+s.Port, relay); err != nil {
 		log.Fatal().Err(err).Msg("failed to serve")
 	}
 }

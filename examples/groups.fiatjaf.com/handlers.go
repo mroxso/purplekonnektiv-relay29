@@ -34,9 +34,17 @@ func handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	question := r.PostFormValue("captcha-id")
+	solution := r.PostFormValue("captcha-solution")
+	if !captcha.Verify(question, solution, true) {
+		log.Info().Str("solution", solution).Msg("invalid captcha")
+		http.Error(w, "captcha solution is wrong", 400)
+		return
+	}
+
 	id := make([]byte, 8)
 	binary.LittleEndian.PutUint64(id, uint64(time.Now().Unix()))
-	groupId := hex.EncodeToString(id[0:4])
+	groupId := hex.EncodeToString(id[0:3])
 
 	log.Info().Str("id", groupId).Str("owner", pubkey).Msg("making group")
 
@@ -45,10 +53,6 @@ func handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "group already exists", 403)
 		return
 	}
-
-	// create group right here
-	group = state.NewGroup(groupId)
-	state.Groups.Store(groupId, group)
 
 	foundingEvents := []*nostr.Event{
 		{
@@ -98,6 +102,7 @@ func handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	group, _ = state.Groups.Load(groupId)
 	naddr, _ := nip19.EncodeEntity(s.RelayPubkey, 39000, groupId, []string{"wss://" + s.Domain})
 	fmt.Fprintf(w, "group created!\n\n%s\naddress: %s", naddr, group.Address)
 }
