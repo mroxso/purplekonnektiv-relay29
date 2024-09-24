@@ -47,6 +47,7 @@ func main() {
 
 	// load db
 	db.Path = s.DatabasePath
+	db.MaxLimit = 40000
 	if err := db.Init(); err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize database")
 		return
