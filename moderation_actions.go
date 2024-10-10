@@ -267,10 +267,10 @@ func (a RemovePermission) Apply(group *nip29.Group) {
 			continue
 		}
 
-		_, hasSuperiorOrEqualPermission := target.Permissions[nip29.PermRemovePermission]
-		if hasSuperiorOrEqualPermission {
-			continue
-		}
+		// _, hasSuperiorOrEqualPermission := target.Permissions[nip29.PermRemovePermission]
+		// if hasSuperiorOrEqualPermission {
+		// 	continue
+		// }
 
 		// remove all permissions listed
 		for _, perm := range a.Permissions {
