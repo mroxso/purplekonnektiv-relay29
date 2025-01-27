@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/fiatjaf/eventstore/postgresql"
+	"github.com/fiatjaf/eventstore/lmdb"
 	"github.com/fiatjaf/khatru"
 	"github.com/fiatjaf/khatru/policies"
 	"github.com/fiatjaf/relay29"
@@ -17,21 +17,21 @@ import (
 )
 
 type Settings struct {
-	Port             string `envconfig:"PORT" default:"4200"`
+	Port             string `envconfig:"PORT" default:"5577"`
 	Domain           string `envconfig:"DOMAIN" required:"true"`
 	RelayName        string `envconfig:"RELAY_NAME" required:"true"`
 	RelayPrivkey     string `envconfig:"RELAY_PRIVKEY" required:"true"`
 	RelayDescription string `envconfig:"RELAY_DESCRIPTION"`
 	RelayContact     string `envconfig:"RELAY_CONTACT"`
 	RelayIcon        string `envconfig:"RELAY_ICON"`
-	DatabasePath     string `envconfig:"DATABASE_PATH" default:"relay29:relay29@localhost/relay29?sslmode=disable"`
+	DatabasePath     string `envconfig:"DATABASE_PATH" default:"./db"`
 
 	RelayPubkey string `envconfig:"-"`
 }
 
 var (
 	s     Settings
-	db    = &postgresql.PostgresBackend{}
+	db    = &lmdb.LMDBBackend{}
 	log   = zerolog.New(os.Stderr).Output(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
 	relay *khatru.Relay
 	state *relay29.State
@@ -46,12 +46,13 @@ func main() {
 	s.RelayPubkey, _ = nostr.GetPublicKey(s.RelayPrivkey)
 
 	// load db
-	db.DatabaseURL = s.DatabasePath
+	db.Path = s.DatabasePath
+	db.MaxLimit = 40000
 	if err := db.Init(); err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize database")
 		return
 	}
-	log.Debug().Str("path", db.DatabaseURL).Msg("initialized database")
+	log.Debug().Str("path", db.Path).Msg("initialized database")
 
 	// init relay29 stuff
 	relay, state = khatru29.Init(relay29.Options{
