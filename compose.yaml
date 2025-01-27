@@ -1,0 +1,21 @@
+services:
+  relay29:
+    build:
+      context: .
+      target: final
+      args:
+        - PROJECT=examples/groups.fiatjaf.com # OPTIONAL
+    volumes:
+      - ./db:/db
+    environment:
+      - DOMAIN=groups.example.com
+      - RELAY_NAME=Groups Relay
+      - RELAY_PRIVKEY=XXXXX
+      - DATABASE_PATH=/db
+      - PORT=4200
+      # OPTIONAL
+      - RELAY_DESCRIPTION=Groups Relay
+      # - RELAY_CONTACT=contact@example.com
+      # - RELAY_ICON=https://example.com/icon.png
+    ports:
+      - 4200:4200
