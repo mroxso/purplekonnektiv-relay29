@@ -11,7 +11,7 @@ services:
       - DOMAIN=groups.example.com
       - RELAY_NAME=Groups Relay
       - RELAY_PRIVKEY=XXXXX
-      - DATABASE_PATH=/db
+      - DATABASE_PATH=/db/relay29.sqlite
       - PORT=4200
       # OPTIONAL
       - RELAY_DESCRIPTION=Groups Relay
