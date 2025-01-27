@@ -4,7 +4,7 @@ services:
       context: .
       target: final
       args:
-        - PROJECT=examples/groups.fiatjaf.com # OPTIONAL
+        - PROJECT=groups.purplekonnektiv.com # OPTIONAL
     depends_on:
       - postgres
     environment:
@@ -27,3 +27,14 @@ services:
       - POSTGRES_DB=relay29
     volumes:
       - ./db:/var/lib/postgresql/data
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    volumes:
+      - ./pgadmin-data:/var/lib/pgadmin
