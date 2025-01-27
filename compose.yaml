@@ -1,17 +1,17 @@
 services:
   relay29:
+    depends_on:
+      - postgres
     build:
       context: .
       target: final
       args:
-        - PROJECT=examples/groups.fiatjaf.com # OPTIONAL
-    volumes:
-      - ./db:/db
+        - PROJECT=groups.purplekonnektiv.com # OPTIONAL
     environment:
       - DOMAIN=groups.example.com
       - RELAY_NAME=Groups Relay
       - RELAY_PRIVKEY=XXXXX
-      - DATABASE_PATH=/db
+      - DATABASE_PATH=postgresql://relay29:relay29@postgres:5432/relay29?sslmode=disable
       - PORT=4200
       # OPTIONAL
       - RELAY_DESCRIPTION=Groups Relay
@@ -19,3 +19,13 @@ services:
       # - RELAY_ICON=https://example.com/icon.png
     ports:
       - 4200:4200
+  postgres:
+    image: postgres:17
+    environment:
+      - POSTGRES_DB=relay29
+      - POSTGRES_USER=relay29
+      - POSTGRES_PASSWORD=relay29
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
